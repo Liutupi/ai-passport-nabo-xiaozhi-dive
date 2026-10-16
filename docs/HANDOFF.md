@@ -2,6 +2,10 @@
 
 ## 当前交接状态
 
+最新 Release 为 **v1.3.0 深潜版**（本仓库），应用 4,107,808 字节，SHA256 `7cd8589aff5aa7eacf66bdff93a9cd5accc19613aa9add2ce80504507ac0a45a`：新增深潜，移除网络电台。应用分区剩约 20 KB；深潜运行时空闲堆约 32 KB，主页约 32 KB。发行包仍复用 v1.0.0 的 bootloader、分区表和资源；带电台的 v1.2.0 继续在 [ai-passport-nabo-xiaozhi](https://github.com/Liutupi/ai-passport-nabo-xiaozhi) 维护，两版用 upgrade 模式互相切换。深潜的结构与注意事项见下文“深潜”一节。
+
+以下为 v1.2.0 及更早的交接状态。
+
 最新 Release 为 **v1.2.0**，应用 4,053,008 字节，SHA256 `2c05a52efc76a38597c0a632082c913f8af0acaf6d357f889a58b92829a3c984`：海报风菜单（`nabo_menu_view.cc`）与思源黑体 4-bit 字体。应用分区只剩约 75 KB，新增大块资源前先评估字体子集或改用压缩字体。截图脚本测试只发方向键，不要在设置页发 OK（会改用户设置）。
 
 v1.1.0：应用 3,945,968 字节，SHA256 `5c0d5117bc69ee0fd7115e0a73ce2c12df6e409ccd3a6e08ebe134ef39394620`。新增节奏回声、菜单重设计和菜单面板按需分配；验证范围见 [VALIDATION.md](VALIDATION.md)。发行包的 bootloader、分区表和资源镜像直接复用 v1.0.0 Release（与实机逐字节一致），只替换应用：本机重新构建的 bootloader/资源与已部署字节不同，若把它们打进包，`flash_release.py --mode upgrade` 会对现有设备拒绝写入。

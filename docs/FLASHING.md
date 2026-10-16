@@ -18,7 +18,7 @@ Release ZIP 是独立镜像集合，不是可直接写到 `0x0` 的单个文件�
 
 ## 准备
 
-下载并解压 `ai-passport-nabo-xiaozhi-v1.0.0.zip`。在解压目录执行：
+下载并解压 `ai-passport-nabo-xiaozhi-dive-v1.3.0.zip`。在解压目录执行：
 
 ```powershell
 python -m pip install -r requirements-flash.txt
@@ -37,6 +37,10 @@ python tools/flash_release.py --package . --mode upgrade --port COM8 --expected-
 工具核对包内 SHA256、ESP32-C3、8 MB、未启用安全启动/Flash 加密，备份并校验整片 Flash，再比对当前 bootloader、分区表和资源。匹配时只写 `xiaozhi.bin`，写后校验应用和全部未修改区域，再重启。配网、激活、最高分等 NVS 数据保留。
 
 若分区/资源不同，工具会在写入前停止。先阅读失败原因，不要绕过检查继续用裸 esptool 写入。
+
+### 在电台版与深潜版之间切换
+
+深潜版 v1.3.0 与电台版 v1.0.0–v1.2.0 的 bootloader、分区表、资源完全相同，互相切换都用上面的 upgrade 模式，只写应用。想回到网络电台，下载 [ai-passport-nabo-xiaozhi v1.2.0](https://github.com/Liutupi/ai-passport-nabo-xiaozhi/releases/tag/v1.2.0) 的包同样执行 upgrade。两版各自的数据（深潜最深纪录、跳一跳最高分、功德等）都留在 NVS，切回来仍在。
 
 ## 原始工牌或首次安装
 

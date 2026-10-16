@@ -4,9 +4,9 @@
 
 本仓库从 [ai-passport-nabo-xiaozhi](https://github.com/Liutupi/ai-passport-nabo-xiaozhi)（v1.2.0，带网络电台）分出，保留其完整历史；为给深潜腾出应用分区，**移除了网络电台**。两个版本分区、NVS 完全兼容，只写应用分区即可来回切换，配网、激活和成绩都保留。深潜的美术素材、Codex 流程和网页原型在独立仓库 [nabo-dive](https://github.com/Liutupi/nabo-dive)。
 
-**状态：尚未发布 Release。** 已在工牌实机验证（见[验证记录](docs/VALIDATION.md)），需要自行编译刷写；需要网络电台请使用原仓库的 v1.2.0。
+**当前版本：v1.3.0，2026-10-17。** 应用 SHA256 `7cd8589aff5aa7eacf66bdff93a9cd5accc19613aa9add2ce80504507ac0a45a`，已在工牌实机验证。已装电台版 v1.0.0–v1.2.0 的工牌可直接用升级模式切换过来（只写应用），想回到电台版用原仓库 v1.2.0 包同样升级即可。
 
-[使用指南](docs/USER_GUIDE.md) · [刷写说明](docs/FLASHING.md) · [编译说明](docs/BUILD.md) · [维护交接](docs/HANDOFF.md) · [验证记录](docs/VALIDATION.md) · [更新记录](CHANGELOG.md)
+[下载固件](https://github.com/Liutupi/ai-passport-nabo-xiaozhi-dive/releases/latest) · [使用指南](docs/USER_GUIDE.md) · [刷写说明](docs/FLASHING.md) · [编译说明](docs/BUILD.md) · [维护交接](docs/HANDOFF.md) · [验证记录](docs/VALIDATION.md) · [更新记录](CHANGELOG.md)
 
 ![深潜：标题、阳光层、俯冲破纪录、结束页（面板实际像素）](docs/images/lcd-dive.png)
 

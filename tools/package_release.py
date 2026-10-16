@@ -15,7 +15,7 @@ parser.add_argument('--build', type=Path, help='Use newly built images; omit to 
 args = parser.parse_args()
 if not re.fullmatch(r'\d+\.\d+\.\d+', args.version):
     parser.error('Use a semantic release version, e.g. 1.0.0')
-name = 'ai-passport-nabo-xiaozhi-v'+args.version
+name = 'ai-passport-nabo-xiaozhi-dive-v'+args.version
 dest = root / 'dist' / name
 dest.mkdir(parents=True, exist_ok=True)
 if args.build:
@@ -38,7 +38,7 @@ if manifest['release_version'] != args.version:
 for filename in ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'requirements-flash.txt', 'CHANGELOG.md']:
     shutil.copy2(root/filename, dest/filename)
 (dest/'README.md').write_text(
-    '# AI Passport NABO 小智 v'+args.version+' 刷写包\n\n'
+    '# AI Passport NABO 小智 · 深潜版 v'+args.version+' 刷写包\n\n'
     '适用 ESP32-C3 / 8 MB AI Passport。镜像校验和与偏移见 manifest.json。\n\n'
     '先读 docs/FLASHING.md，按自己的端口和设备 MAC 执行：\n\n'
     '```powershell\npython -m pip install -r requirements-flash.txt\n'
@@ -57,8 +57,11 @@ shutil.copy2(root/'tools/flash_release.py', dest/'tools/flash_release.py')
 (dest/'licenses').mkdir(exist_ok=True)
 for font_license in ['OFL-SourceHanSans.txt', 'OFL-ArchivoBlack.txt', 'OFL-SpaceMono.txt']:
     shutil.copy2(root/'xiaozhi-esp32/main/boards/folotoy/ai-passport-nabo'/font_license, dest/'licenses'/font_license)
+# macOS writes AppleDouble '._*' companions on non-APFS volumes; they never belong in a release.
+for junk in [p for p in dest.rglob('._*')] + [p for p in dest.rglob('.DS_Store')]:
+    junk.unlink() if junk.is_file() else shutil.rmtree(junk)
 # Refuse accidental private files before archiving, even when reusing a directory.
-files = sorted(p for p in dest.rglob('*') if p.is_file())
+files = sorted(p for p in dest.rglob('*') if p.is_file() and not p.name.startswith('._') and p.name != '.DS_Store')
 for path in files:
     relative = path.relative_to(dest)
     if 'private' in relative.parts or path.suffix == '.log' or path.name in ['nvs.bin', 'merged-binary.bin']:
@@ -68,7 +71,8 @@ checksums = '\n'.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.relative
 (dest/'SHA256SUMS.txt').write_text(checksums, 'utf-8')
 archive = root/'dist'/(name+'.zip')
 with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:
-    for path in sorted(p for p in dest.rglob('*') if p.is_file()):
+    for path in sorted(p for p in dest.rglob('*') if p.is_file() and not p.name.startswith('._')
+                       and p.name != '.DS_Store'):
         z.write(path, path.relative_to(dest).as_posix())
 outer = root/'dist/SHA256SUMS.txt'
 outer.write_text('\n'.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name
