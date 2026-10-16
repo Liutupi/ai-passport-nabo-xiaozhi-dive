@@ -61,7 +61,7 @@ b18f915d0295181609b225b475511e1e8a5e60d950b2390fc33191e7c0278d40
 
 **节奏判定：** 判定以 OK/下键的 press-down 时间戳为准（下键按下由板型 `OnPressDown` 转发），通过 worker 写 I2S 前记录的锚点换算到歌曲采样位置。默认补偿 42 ms，可用 `>rhythm.latency=` 调整；`>rhythm.best.reset` 清除成绩，脚本测试后应执行，避免留下假成绩。
 
-## 深潜（feat/dive）
+## 深潜
 
 **屏幕所有权：** 深潜不经过 LVGL。`change_page` 在 LVGL 任务里调用 `NaboDisplay::BeginDirectDraw()`（暂停刷新定时器、等最后一次 flush 结束）后启动游戏任务；离开时 `nabo_dive_close()` 先让任务复位硬件滚动（VSCSAD=0）并退出，再 `EndDirectDraw()` 恢复刷新、整屏重绘。游戏任务不拿显示锁，避免和 LVGL 任务互等。
 

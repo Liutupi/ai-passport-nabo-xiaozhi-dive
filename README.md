@@ -1,12 +1,14 @@
-# AI Passport · NABO × 小智
+# AI Passport · NABO × 小智 · 深潜版
 
-为 **FoloToy AI Passport（ESP32-C3 / 8 MB）**制作的小智定制固件：NABO 待机与对话动画、深潜、跳一跳、节奏回声、摇骰子、功德木鱼、蓝牙电脑快捷键，以及完整的设备设置。
+为 **FoloToy AI Passport（ESP32-C3 / 8 MB）**制作的小智定制固件，带原创单键下潜游戏**「深潜 DIVE」**：NABO 待机与对话动画、深潜、跳一跳、节奏回声、摇骰子、功德木鱼、蓝牙电脑快捷键，以及完整的设备设置。
 
-> `feat/dive` 分支：新增单键下潜游戏「深潜 DIVE」，并移除网络电台为它腾出应用空间。尚未发布，状态见 [CHANGELOG](CHANGELOG.md)。
+本仓库从 [ai-passport-nabo-xiaozhi](https://github.com/Liutupi/ai-passport-nabo-xiaozhi)（v1.2.0，带网络电台）分出，保留其完整历史；为给深潜腾出应用分区，**移除了网络电台**。两个版本分区、NVS 完全兼容，只写应用分区即可来回切换，配网、激活和成绩都保留。深潜的美术素材、Codex 流程和网页原型在独立仓库 [nabo-dive](https://github.com/Liutupi/nabo-dive)。
 
-**当前版本：v1.2.0，2026-10-15。** 海报风菜单与思源黑体抗锯齿字体；v1.1.0 起含节奏回声 ECHO CLUB。发布的应用镜像已刷入工牌并在实机截屏验证。小智上游的应用版本字符串仍为 `2.5.0`；本项目的发行版本为 `v1.2.0`。
+**状态：尚未发布 Release。** 已在工牌实机验证（见[验证记录](docs/VALIDATION.md)），需要自行编译刷写；需要网络电台请使用原仓库的 v1.2.0。
 
-[下载固件](https://github.com/Liutupi/ai-passport-nabo-xiaozhi/releases/latest) · [使用指南](docs/USER_GUIDE.md) · [刷写说明](docs/FLASHING.md) · [编译说明](docs/BUILD.md) · [维护交接](docs/HANDOFF.md) · [验证记录](docs/VALIDATION.md)
+[使用指南](docs/USER_GUIDE.md) · [刷写说明](docs/FLASHING.md) · [编译说明](docs/BUILD.md) · [维护交接](docs/HANDOFF.md) · [验证记录](docs/VALIDATION.md) · [更新记录](CHANGELOG.md)
+
+![深潜：标题、阳光层、俯冲破纪录、结束页（面板实际像素）](docs/images/lcd-dive.png)
 
 ![NABO 跳一跳实机画面](docs/images/lcd-jump-current.png)
 

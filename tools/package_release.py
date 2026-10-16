@@ -46,7 +46,7 @@ for filename in ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'requirements-flash.txt', 
     '# 已安装本定制版：\n'
     'python tools/flash_release.py --package . --mode upgrade --port COM8 --expected-mac YOUR_DEVICE_MAC\n'
     '# 首次安装：将上面的 upgrade 改为 install\n```\n\n'
-    '完整项目源码、使用和交接文档：<https://github.com/Liutupi/ai-passport-nabo-xiaozhi>。\n'
+    '完整项目源码、使用和交接文档：<https://github.com/Liutupi/ai-passport-nabo-xiaozhi-dive>。\n'
     '备份留在 private/，请留在本机。第三方说明及字体许可随本包提供。\n', 'utf-8')
 shutil.copytree(root/'docs', dest/'docs', dirs_exist_ok=True)
 shutil.copytree(root/'validation', dest/'validation', dirs_exist_ok=True)
