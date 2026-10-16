@@ -31,7 +31,18 @@ python scripts/build.py folotoy/ai-passport-nabo --name ai-passport-nabo --langu
 
 ## 已包含的资源
 
-NABO RLE、木鱼 RLE、平台/角色精灵、跳跃 PCM、中文菜单字体均在板型目录，干净检出即可构建，不需要作者的旧 Muse 项目、私有素材路径或移植脚本。Helix 源码及完整许可也随板型保存。
+NABO RLE、木鱼 RLE、平台/角色精灵、跳跃 PCM、深潜 NABO 帧表、中文菜单字体均在板型目录，干净检出即可构建，不需要作者的旧 Muse 项目、私有素材路径或移植脚本。
+
+**深潜素材：** `nabo_dive_sprites.c/.h` 由 `python3 tools/generate_dive_sprites.py --skin a` 从美术仓库 [nabo-dive](https://github.com/Liutupi/nabo-dive) 的 `manifest.json` 生成（需要 Pillow、NumPy、SciPy；默认读取与本仓库同级的 `../nabo-dive`，可用 `--source` 指定）。
+
+**字体：** 新增界面中文后重新生成。源字体不入库，SHA256 记录在 `game-art/fonts.json`：
+
+```sh
+python3 tools/generate_fonts.py --converter path/to/lv_font_conv \
+    --sans SourceHanSansCN-Medium.otf --archivo ArchivoBlack-Regular.ttf --mono SpaceMono-Bold.ttf
+```
+
+字体来源：Source Han Sans（adobe-fonts/source-han-sans 的 release 分支 `SubsetOTF/CN/`）、Archivo Black 与 Space Mono（google/fonts 的 `ofl/`），lv_font_conv 1.5.3（npm）。下载后先核对 SHA256 与 fonts.json 一致。
 
 `prepare_nabo.py`、`port_apps.py` 是早期移植生成器，未放进发行仓库；它们会覆盖后续手工修复，不能用来维护本版。修改资源要保留来源/许可并更新对应格式、偏移、大小和校验记录。
 
@@ -42,7 +53,7 @@ python -m pip install -r requirements-dev.txt
 python tools/run_tests.py
 ```
 
-GCC/G++ 必须在 PATH 中，或设置 `CC`、`CXX`。Windows 可用 MinGW/w64devkit；Linux 使用系统 GCC。测试直接编译生产 C/C++：99 个语音指令案例、PCM 分块极值/尾块、18 个游戏回归、111 个骰子/木鱼/快捷键/电台回归、电台分块和碎片堆分配，另有上游宿主测试。
+GCC/G++ 必须在 PATH 中，或设置 `CC`、`CXX`。Windows 可用 MinGW/w64devkit；Linux 使用系统 GCC。测试直接编译生产 C/C++：语音指令案例、PCM 分块极值/尾块、跳一跳与节奏回声回归、深潜规则/素材/字形/声音与增量画面逐像素比对、骰子/木鱼/快捷键回归，另有上游宿主测试。深潜测试需要系统 zlib。
 
 宿主测试不刷工牌。通过后仍须在真实硬件验证对话、音频、按键和程序切换。CI 不替代这一步。
 

@@ -1449,11 +1449,6 @@ if(CONFIG_BOARD_TYPE_FOLOTOY_AI_PASSPORT_NABO)
 endif()
 
 if(CONFIG_BOARD_TYPE_FOLOTOY_AI_PASSPORT_NABO)
-    file(GLOB NABO_HELIX_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/boards/folotoy/ai-passport-nabo/helix/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/boards/folotoy/ai-passport-nabo/helix/real/*.c")
-    list(FILTER NABO_HELIX_SOURCES EXCLUDE REGEX "/real/buffers\\.c$")
-    target_sources(${COMPONENT_LIB} PRIVATE ${NABO_HELIX_SOURCES})
-    set_source_files_properties(${NABO_HELIX_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wno-unused-but-set-variable")
-    target_include_directories(${COMPONENT_LIB} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/boards/folotoy/ai-passport-nabo/helix/pub" "${CMAKE_CURRENT_SOURCE_DIR}/boards/folotoy/ai-passport-nabo/helix/real")
     target_link_libraries(${COMPONENT_LIB} PRIVATE idf::bt)
     target_add_binary_data(${COMPONENT_LIB} "${CMAKE_CURRENT_SOURCE_DIR}/boards/folotoy/ai-passport-nabo/muyu_rgb565_rle.bin" BINARY)
 endif()
@@ -1465,6 +1460,12 @@ if(CONFIG_BOARD_TYPE_FOLOTOY_AI_PASSPORT_NABO)
     set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/boards/folotoy/ai-passport-nabo/nabo_jump_model.c"
                                 "${CMAKE_CURRENT_SOURCE_DIR}/boards/folotoy/ai-passport-nabo/nabo_jump_rig.c"
                                 PROPERTIES COMPILE_OPTIONS "-O3")
+    # DIVE renders and synthesizes per pixel/sample on the C3; keep those paths optimized.
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/boards/folotoy/ai-passport-nabo/nabo_dive_draw.c"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/boards/folotoy/ai-passport-nabo/nabo_dive_render.c"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/boards/folotoy/ai-passport-nabo/nabo_dive_text.c"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/boards/folotoy/ai-passport-nabo/nabo_dive_sound.c"
+                                PROPERTIES COMPILE_OPTIONS "-O2")
 endif()
 
 if(CONFIG_BOARD_TYPE_FOLOTOY_AI_PASSPORT_NABO)

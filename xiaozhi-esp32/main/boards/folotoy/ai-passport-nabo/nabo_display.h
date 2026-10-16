@@ -12,6 +12,10 @@ public:
     void SetEmotion(const char* emotion) override;
     void SetTheme(Theme* theme) override;
     void CaptureLCD();
+    // DIVE owns the panel between these calls (LVGL task, display locked): LVGL refresh is
+    // paused and its last flush has finished, so only the game talks to the panel.
+    void BeginDirectDraw(esp_lcd_panel_io_handle_t* io, esp_lcd_panel_handle_t* panel);
+    void EndDirectDraw();
     void ReleaseGameDrawBuffer();
 
 private:
@@ -22,6 +26,7 @@ private:
     lv_draw_buf_t* game_draw_buffer_ = nullptr;
     lv_draw_buf_t* game_draw_buffer_second_ = nullptr;
     std::atomic<bool> game_buffer_active_{false};
+    bool direct_draw_ = false;
     lv_image_decoder_t* decoder_ = nullptr;
     lv_timer_t* animation_ = nullptr;
     muse_mode_t mode_ = MUSE_MODE_COUNT;

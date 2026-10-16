@@ -28,7 +28,12 @@ b18f915d0295181609b225b475511e1e8a5e60d950b2390fc33191e7c0278d40
 | nabo_voice_commands.c | 有界无堆分配的明确语音命令解析；拒绝否定、询问、多程序歧义 |
 | nabo_jump_model.c / nabo_jump_rig.c | 游戏物理、平台和人体动作；保留落地/镜头期间的输入 |
 | nabo_jump_sound.c / jump_sounds.bin | PCM 音效、蓄力渐变与切换过渡 |
-| nabo_radio*.c / nabo_helix_buffers.c | 电台目录、HTTP 流、解码/分块重采样、碎片堆友好分配 |
+| nabo_dive.c | 深潜任务、60 Hz esp_timer 节拍、输入、画面切换、NVS 最深纪录、ROM tinfl 解帧、音效事件队列 |
+| nabo_dive_model.c | 深潜规则：地形噪声、氧气、气泡、生物、碰撞（胸口+头两圆）；纯逻辑，宿主测试 test_dive.py |
+| nabo_dive_anim.c | NABO 动作状态机（划水/缺氧/俯冲进出、撞到/吃气泡/结束插播、镜像转身）与仿射矩阵 |
+| nabo_dive_render.c / nabo_dive_draw.c / nabo_dive_text.c | 直绘 GRAM：硬件滚动 + 脏矩形合并、按行世界背景、整数图元、直接读 lv_font_conv 字形 |
+| nabo_dive_sound.c | 16 kHz 合成：分层配乐与事件音效，整数逐样本 |
+| nabo_dive_sprites.c/.h | 由 tools/generate_dive_sprites.py 从 nabo-dive 仓库的 manifest.json 生成（64 色、每帧 raw deflate），不要手改 |
 | nabo_keys*.c / nabo_pc.c | BLE HID、分组映射与退出回收 |
 | nabo_dice*.c / nabo_muyu*.c | 骰子/木鱼模型、画面、声音与持久化 |
 | nabo_rhythm_model.c / nabo_rhythm_sound.c | 节奏回声关卡、判定（16 kHz 采样时钟）、合成音色；宿主测试 test_rhythm.py |
@@ -50,11 +55,25 @@ b18f915d0295181609b225b475511e1e8a5e60d950b2390fc33191e7c0278d40
 
 **声音：** 骰子/木鱼继续 16 kHz 双声道 I2S、4×160 帧 DMA。小智 24 kHz 与本地音效的所有权和采样率不同，要先完成退出再切换。蓄力 gain 0.65、15 ms 淡入淡出、约 8 ms 声音切换过渡已被接受。界面 100% 需保留扬声器余量，不能直接恢复满幅。
 
-**按键：** 右侧上键双击回上一级，单击原功能、长按直接回小智。页面父级要保留，特别是设置编辑、状态页、电台目录、电脑分组。左侧电源键不是可读取的 MCU 按键。
+**按键：** 右侧上键双击回上一级，单击原功能、长按直接回小智。页面父级要保留，特别是设置编辑、状态页、电脑分组。左侧电源键不是可读取的 MCU 按键。
 
 **菜单内存：** LVGL 使用系统堆（`CONFIG_LV_USE_CLIB_MALLOC`）。菜单面板在进入菜单页时创建、回到 NABO 或进入游戏时删除，节奏回声同理。不要改回开机常驻：v1.1.0 首次常驻版本在开机 MQTT 发布工具列表时出现 `esp-aes: Failed to allocate memory`，改为按需后待机空闲堆约 30 KB → 36 KB。
 
 **节奏判定：** 判定以 OK/下键的 press-down 时间戳为准（下键按下由板型 `OnPressDown` 转发），通过 worker 写 I2S 前记录的锚点换算到歌曲采样位置。默认补偿 42 ms，可用 `>rhythm.latency=` 调整；`>rhythm.best.reset` 清除成绩，脚本测试后应执行，避免留下假成绩。
+
+## 深潜（feat/dive）
+
+**屏幕所有权：** 深潜不经过 LVGL。`change_page` 在 LVGL 任务里调用 `NaboDisplay::BeginDirectDraw()`（暂停刷新定时器、等最后一次 flush 结束）后启动游戏任务；离开时 `nabo_dive_close()` 先让任务复位硬件滚动（VSCSAD=0）并退出，再 `EndDirectDraw()` 恢复刷新、整屏重绘。游戏任务不拿显示锁，避免和 LVGL 任务互等。
+
+**画面：** 世界行写入 GRAM 第 `世界行 mod 320` 行，VSCSAD 跟随镜头；新露出的行只画一次，移动物体和屏幕固定的 HUD 走脏矩形（上一帧位置按滚动行数平移后与本帧合并）。按 4 行一组缓存背景颜色，组颜色固定取首行，否则增量画面与整屏重绘不一致；`test_dive.py` 逐像素比对两者。氧气条是不透明凹槽，下面不再画背景。
+
+**内存：** 打开时约占 45 KB（tinfl 状态 11 KB、任务栈 6 KB、游戏状态、行缓存、条带缓冲等），先分配大块。运行中剩约 30 KB。小智的协议恢复必须等 `nabo_dive_running()` 为假，否则恢复时分配失败。应用分区剩约 18 KB。**不要把渲染代码放进 IRAM：** 试过一次，开机即 abort 循环。
+
+**性能：** 实测正常游玩约 27–31 fps，标题/结束页 59 fps。瓶颈是 Flash 指令缓存与每行固定开销，不是 SPI。
+
+**素材流程：** Codex 交付到 [nabo-dive](https://github.com/Liutupi/nabo-dive) 仓库 → `manifest.json` → `python3 tools/generate_dive_sprites.py --skin a` → 重新编译。新增界面中文后按 BUILD.md 重新生成字体。
+
+**串口诊断：** `>apps.open=dive`；`>jump.press` / `>jump.release` 模拟 OK；`>dive.auto=1` 自动驾驶（测帧率、演示）；`>dive.prof=1` 在 5 秒日志里加分项计时（本身约耗 1 ms/帧）。
 
 ## 诊断与回归
 
@@ -62,7 +81,7 @@ b18f915d0295181609b225b475511e1e8a5e60d950b2390fc33191e7c0278d40
 
 主页 `VoiceMemory` 每约 5 秒打印 heap、largest、Opus 栈余量和音频计数，只在主页工作，不干扰游戏绘制。记录长回答、打断、返回主页后再对话，检查 abort/assert、栈和最大连续内存块。日志可能包含 ASR/TTS、网络信息，只保存到被 Git 忽略的 `private/`，公开问题仅用脱敏堆栈和统计。
 
-按影响运行测试：语音解析/PCM/游戏/电台生产 C 测试，以及上游宿主测试。修改音频/生命周期必须加真实连续对话与程序来回切换；修改 BLE 需已配对退出；修改导航需验证所有父页面。不要反复运行不相关测试替代硬件验证。
+按影响运行测试：语音解析/PCM/游戏（跳一跳、节奏回声、深潜）生产 C 测试，以及上游宿主测试。修改音频/生命周期必须加真实连续对话与程序来回切换；修改 BLE 需已配对退出；修改导航需验证所有父页面。不要反复运行不相关测试替代硬件验证。
 
 ## 下一版发布流程
 
@@ -75,4 +94,4 @@ b18f915d0295181609b225b475511e1e8a5e60d950b2390fc33191e7c0278d40
 
 ## 已知边界
 
-自定义单应用分区不能使用标准 OTA。网络语音需要小智服务，电台 URL 也依赖第三方网络。仅此 ESP32-C3 工牌经实机验证，其他上游板型保留源码但不是本项目的兼容承诺。首版不保证任意网络环境永久无重连，也不承诺全阶段 60 FPS；用户实际接受的连跳和声音、测量范围均在验证记录中。
+自定义单应用分区不能使用标准 OTA。网络语音需要小智服务。仅此 ESP32-C3 工牌经实机验证，其他上游板型保留源码但不是本项目的兼容承诺。首版不保证任意网络环境永久无重连，也不承诺全阶段 60 FPS；用户实际接受的连跳和声音、测量范围均在验证记录中。

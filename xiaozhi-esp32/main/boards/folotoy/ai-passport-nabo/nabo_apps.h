@@ -7,7 +7,7 @@ enum NaboApp {
     NABO_SETTINGS,
     NABO_DICE,
     NABO_MUYU,
-    NABO_RADIO,
+    NABO_DIVE,
     NABO_KEYS,
     NABO_JUMP,
     NABO_STATUS,
@@ -26,6 +26,8 @@ bool nabo_apps_is_jump();
 bool nabo_apps_is_fast();
 /* Press-down of the DOWN key; only the rhythm game scores it. */
 void nabo_apps_down_pressed(uint32_t event_ms);
+/* Release of the DOWN key; DIVE dashes while it is held. */
+void nabo_apps_down_released(uint32_t event_ms);
 void nabo_apps_register_tools();
 void nabo_apps_initialize();
 bool nabo_apps_voice_command(const char* transcript);

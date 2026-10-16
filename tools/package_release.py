@@ -1,4 +1,4 @@
-"""Package individual build images, documentation and corresponding Helix source."""
+"""Package individual build images, documentation, third-party notices and font licenses."""
 import argparse
 import hashlib
 import json
@@ -47,14 +47,13 @@ for filename in ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'requirements-flash.txt', 
     'python tools/flash_release.py --package . --mode upgrade --port COM8 --expected-mac YOUR_DEVICE_MAC\n'
     '# 首次安装：将上面的 upgrade 改为 install\n```\n\n'
     '完整项目源码、使用和交接文档：<https://github.com/Liutupi/ai-passport-nabo-xiaozhi>。\n'
-    '备份留在 private/，请留在本机。第三方说明及 Helix 对应源码/许可随本包提供。\n', 'utf-8')
+    '备份留在 private/，请留在本机。第三方说明及字体许可随本包提供。\n', 'utf-8')
 shutil.copytree(root/'docs', dest/'docs', dirs_exist_ok=True)
 shutil.copytree(root/'validation', dest/'validation', dirs_exist_ok=True)
-shutil.copytree(root/'game-art', dest/'game-art', dirs_exist_ok=True)
+# DIVE's art sources (Codex rounds, rig, previews) stay in the repository, not in the flash package.
+shutil.copytree(root/'game-art', dest/'game-art', dirs_exist_ok=True, ignore=shutil.ignore_patterns('dive', '._*'))
 (dest/'tools').mkdir(exist_ok=True)
 shutil.copy2(root/'tools/flash_release.py', dest/'tools/flash_release.py')
-shutil.copytree(root/'xiaozhi-esp32/main/boards/folotoy/ai-passport-nabo/helix', dest/'third_party/helix-mp3', dirs_exist_ok=True)
-shutil.copy2(root/'xiaozhi-esp32/main/boards/folotoy/ai-passport-nabo/nabo_helix_buffers.c', dest/'third_party/helix-mp3/nabo_helix_buffers.c')
 (dest/'licenses').mkdir(exist_ok=True)
 for font_license in ['OFL-SourceHanSans.txt', 'OFL-ArchivoBlack.txt', 'OFL-SpaceMono.txt']:
     shutil.copy2(root/'xiaozhi-esp32/main/boards/folotoy/ai-passport-nabo'/font_license, dest/'licenses'/font_license)

@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BOARD = ROOT / 'xiaozhi-esp32/main/boards/folotoy/ai-passport-nabo'
 POSTER_28 = ' !%&-./0123456789:?ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-POSTER_48 = '%0123456789ABCDS!'
+POSTER_48 = '%0123456789ABCDEISV!'  # DIVE title letters included
 FONTS = {
     'nabo_menu_font_16': ('sans', 16, 4),
     'nabo_ui_font_18': ('sans', 18, 4),

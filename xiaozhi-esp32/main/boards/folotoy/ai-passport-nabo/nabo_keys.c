@@ -17,7 +17,6 @@
 #include "nvs.h"
 #include "esp_log.h"
 #include "nabo_pc.h"
-#include "nabo_radio.h"
 
 #define DEFAULT_MAP UINT16_MAX
 static atomic_bool s_wanted, s_running, s_stop, s_secure, s_suspended;
@@ -196,7 +195,6 @@ static bool save_preferences(void)
 void nabo_keys_prepare(void)
 {
     load_preferences();
-    nabo_radio_stop();
 }
 void nabo_keys_register(void)
 {

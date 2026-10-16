@@ -28,6 +28,7 @@ extern "C" {
 #include "nabo_dice.h"
 #include "nabo_dice_render.h"
 #include "nabo_dice_ui.h"
+#include "nabo_dive.h"
 #include "nabo_jump_model.h"
 #include "nabo_jump_sound.h"
 #include "nabo_keys.h"
@@ -35,8 +36,6 @@ extern "C" {
 #include "nabo_muyu_sound.h"
 #include "nabo_muyu_ui.h"
 #include "nabo_pc.h"
-#include "nabo_radio.h"
-#include "nabo_radio_menu.h"
 #include "nabo_rhythm_play.h"
 #include "nabo_voice_commands.h"
 LV_FONT_DECLARE(nabo_menu_font_16);
@@ -108,11 +107,11 @@ static lv_image_dsc_t jump_source = {};
 static lv_draw_buf_t* jump_strip;
 static int64_t jump_last_frame;
 
-static const char* tools[] = {"返回 NABO", "跳一跳",   "节奏回声",   "摇骰子",
-                              "功德木鱼",  "网络电台", "电脑快捷键", "更多设置"};
+static const char* tools[] = {"返回 NABO", "跳一跳", "节奏回声",   "摇骰子",
+                              "功德木鱼",  "深潜",   "电脑快捷键", "更多设置"};
 static constexpr int kToolCount = sizeof(tools) / sizeof(*tools);
 static const NaboApp tool_apps[] = {NABO_HOME, NABO_JUMP,  NABO_RHYTHM, NABO_DICE,
-                                    NABO_MUYU, NABO_RADIO, NABO_KEYS,   NABO_SETTINGS};
+                                    NABO_MUYU, NABO_DIVE,  NABO_KEYS,   NABO_SETTINGS};
 enum Setting {
     ST_BACK,
     ST_VOLUME,
@@ -136,13 +135,6 @@ extern "C" bool muse_wifi_connected(void) {
     return wifi_on.load() && WifiManager::GetInstance().IsConnected();
 }
 extern "C" int nabo_pc_battery_level(void) { return battery.load(); }
-extern "C" bool app_nabo_radio_network_begin(void) {
-    return ready.load() && Application::GetInstance().IsLocalAppActive();
-}
-// XiaoZhi stays paused while its local program is open. The worker resumes it
-// only after every decoder and BLE host has stopped on return to NABO.
-extern "C" void app_nabo_radio_network_end(void) {}
-extern "C" bool app_nabo_radio_active(void) { return nabo_radio_active(); }
 
 void nabo_apps_open(NaboApp app, int delay_ms) {
     if (app < NABO_HOME || app > NABO_RHYTHM)
@@ -232,8 +224,6 @@ static void apply_setting(int id) {
             board.GetAudioCodec()->SetOutputVolume(speaker ? volume.load() : 0);
             break;
         case ST_SPEAKER:
-            if (!speaker)
-                nabo_radio_stop();
             board.GetAudioCodec()->SetOutputVolume(speaker ? volume.load() : 0);
             break;
         case ST_BRIGHTNESS:
@@ -245,10 +235,8 @@ static void apply_setting(int id) {
         case ST_WIFI:
             if (wifi_on)
                 WifiManager::GetInstance().StartStation();
-            else {
-                nabo_radio_stop();
+            else
                 WifiManager::GetInstance().StopStation();
-            }
             break;
         case ST_WIFI_ADD:
             WifiManager::GetInstance().StartConfigAp();
@@ -278,26 +266,19 @@ static void diagnostic(const char* line) {
         DisplayLockGuard lock(Board::GetInstance().GetDisplay());
         printf(
             "\n@apps "
-            "{\"wanted\":%d,\"page\":%d,\"ready\":%d,\"local\":%d,\"heap\":%u,\"radio\":%d,\"pc\":%"
+            "{\"wanted\":%d,\"page\":%d,\"ready\":%d,\"local\":%d,\"heap\":%u,\"dive\":%d,\"pc\":%"
             "d,\"fps\":%lu,\"volume\":%d,\"brightness\":%d,\"sleep\":%d,\"score\":%lu,\"best\":%lu,"
             "\"wifi\":%d,\"phase\":%d,\"gap\":%d,\"queued\":%d,\"holding\":%d,\"held_ms\":%lu,"
             "\"distance\":%d,\"edit\":%d,\"group\":%d,\"cursor\":%d,\"detail_parent\":%d}"
             "\n",
             wanted.load(), (int)page, ready.load(), app.IsLocalAppActive(),
-            (unsigned)esp_get_free_heap_size(), nabo_radio_active(), nabo_pc_running(),
+            (unsigned)esp_get_free_heap_size(), nabo_dive_running(), nabo_pc_running(),
             (unsigned long)jump_fps.load(), volume.load(), brightness.load(), sleep_seconds.load(),
             (unsigned long)jump_game.score, (unsigned long)best_score.load(),
             WifiManager::GetInstance().IsConnected(), (int)jump_game.phase, jump_game.gap,
             jump_game.pending_charge, nabo_jump_charging(&jump_game),
             (unsigned long)nabo_jump_charge_ms(&jump_game, esp_timer_get_time() / 1000),
             jump_game.distance, edit, key_group, key_selected, detail_parent.load());
-        if (page == NABO_RADIO) {
-            char text[80];
-            nabo_radio_menu_text(text, sizeof(text));
-            if (char* newline = strchr(text, '\n'))
-                *newline = 0;
-            printf("@radio-menu %s\n", text);
-        }
     } else if (!strcmp(line, ">jump.metrics")) {
         DisplayLockGuard lock(Board::GetInstance().GetDisplay());
         for (int phase = 0; phase < 6; ++phase) {
@@ -337,7 +318,7 @@ static void diagnostic(const char* line) {
             const char* name;
             NaboApp app;
         } aliases[] = {{"home", NABO_HOME},     {"tools", NABO_TOOLS}, {"settings", NABO_SETTINGS},
-                       {"dice", NABO_DICE},     {"muyu", NABO_MUYU},   {"radio", NABO_RADIO},
+                       {"dice", NABO_DICE},     {"muyu", NABO_MUYU},   {"dive", NABO_DIVE},  
                        {"computer", NABO_KEYS}, {"jump", NABO_JUMP},   {"status", NABO_STATUS},
                        {"rhythm", NABO_RHYTHM}};
         bool found = false;
@@ -400,6 +381,12 @@ static void diagnostic(const char* line) {
     } else if (!strncmp(line, ">rhythm.latency=", 16)) {
         nabo_rhythm_play_set_latency_ms(atoi(line + 16));
         printf("\n@rhythm latency_ms=%d\n", nabo_rhythm_play_latency_ms());
+    } else if (!strcmp(line, ">dive.auto=1") || !strcmp(line, ">dive.auto=0")) {
+        nabo_dive_autopilot(line[11] == '1');
+        printf("\n@dive autopilot=%c\n", line[11]);
+    } else if (!strcmp(line, ">dive.prof=1") || !strcmp(line, ">dive.prof=0")) {
+        nabo_dive_profile(line[11] == '1');
+        printf("\n@dive profile=%c\n", line[11]);
     } else if (!strcmp(line, ">apps.capture")) {
         app.Schedule(
             []() { static_cast<NaboDisplay*>(Board::GetInstance().GetDisplay())->CaptureLCD(); });
@@ -415,7 +402,6 @@ static void worker(void*) {
     vTaskDelay(pdMS_TO_TICKS(350));
     load_settings();
     nabo_muyu_init();
-    nabo_radio_init();
     if (!usb_serial_jtag_is_driver_installed()) {
         usb_serial_jtag_driver_config_t cfg = {.tx_buffer_size = 2048, .rx_buffer_size = 512};
         usb_serial_jtag_driver_install(&cfg);
@@ -479,7 +465,7 @@ static void worker(void*) {
             if (desired != NABO_JUMP)
                 static_cast<NaboDisplay*>(Board::GetInstance().GetDisplay())
                     ->ReleaseGameDrawBuffer();
-            if (desired == NABO_KEYS && !pc_owned && !nabo_radio_active()) {
+            if (desired == NABO_KEYS && !pc_owned) {
                 pc_owned = true;
                 nabo_keys_open();
             }
@@ -488,21 +474,7 @@ static void worker(void*) {
                 nabo_keys_close();
             }
             nabo_pc_apply();
-            if (desired != NABO_RADIO && nabo_radio_wanted())
-                nabo_radio_stop();
-            if (desired == NABO_RADIO && !nabo_pc_running() && nabo_radio_due())
-                nabo_radio_begin();
             memset(samples, 0, sizeof(samples));
-            if (nabo_radio_active()) {
-                if (nabo_radio_finished())
-                    nabo_radio_finish();
-                else {
-                    int16_t radio_pcm[320];
-                    size_t n = nabo_radio_read(radio_pcm, 320, 0);
-                    if (n && desired == NABO_RADIO)
-                        memcpy(samples, radio_pcm, n * sizeof(int16_t));
-                }
-            }
             uint32_t seed;
             unsigned count;
             int64_t thrown_at;
@@ -543,13 +515,16 @@ static void worker(void*) {
                 nabo_jump_sound_start(&jump_audio, 0, 0);
             if (desired == NABO_RHYTHM)
                 nabo_rhythm_audio_fill(samples, 320);
+            if (desired == NABO_DIVE)
+                nabo_dive_audio_fill(samples, 320);
             // A continuous 20 ms clock prevents underruns and clears each effect's
             // DMA tail. Do not sleep again after the blocking I2S write.
             if (desired != NABO_HOME && speaker.load()) {
                 output16(samples, 320);
                 audio_clocked = true;
             }
-            if (desired == NABO_HOME && !nabo_radio_active() && !nabo_pc_running()) {
+            // DIVE frees its ~50 KB on the LVGL task; XiaoZhi's restore needs that memory back first.
+            if (desired == NABO_HOME && !nabo_pc_running() && !nabo_dive_running()) {
                 Board::GetInstance().GetAudioCodec()->EnableOutput(false);
                 ready = false;
                 engaged = false;
@@ -563,7 +538,6 @@ static void worker(void*) {
         if (command >= 0)
             apply_setting(command);
         nabo_muyu_idle_tick();
-        nabo_radio_idle_tick();
         if (best_dirty.load() &&
             (desired != NABO_JUMP ||
              (jump_round_over.load() && now - best_changed_at.load() >= 2000000)) &&
@@ -716,15 +690,17 @@ void nabo_apps_build(lv_obj_t* screen) {
     lv_obj_set_style_text_font(jump_score, &lv_font_montserrat_28, 0);
     nabo_apps_initialize();
     nabo_apps_register_tools();
-    ESP_LOGI("NABO-Apps", "menus, dice, wooden fish, radio, keyboard and jump ready");
+    ESP_LOGI("NABO-Apps", "menus, dice, wooden fish, dive, keyboard and jump ready");
 }
 static void change_page(NaboApp next) {
     if (page == NABO_DICE)
         nabo_dice_ui_close();
     if (page == NABO_MUYU)
         nabo_muyu_ui_close();
-    if (page == NABO_RADIO)
-        nabo_radio_menu_close();
+    if (page == NABO_DIVE) {
+        nabo_dive_close();
+        static_cast<NaboDisplay*>(Board::GetInstance().GetDisplay())->EndDirectDraw();
+    }
     if (page == NABO_RHYTHM)
         nabo_rhythm_ui_close();
     if (page == NABO_JUMP) {
@@ -740,7 +716,7 @@ static void change_page(NaboApp next) {
     selected = next == NABO_TOOLS ? 1 : 0;
     key_selected = 0;
     bool menu = !(next == NABO_HOME || next == NABO_DICE || next == NABO_MUYU ||
-                  next == NABO_JUMP || next == NABO_RHYTHM);
+                  next == NABO_JUMP || next == NABO_RHYTHM || next == NABO_DIVE);
     // The menu panel exists only while a menu page is shown: LVGL allocates
     // from the C3's system heap, which XiaoZhi's TLS and Opus need at home.
     if (menu) {
@@ -753,8 +729,18 @@ static void change_page(NaboApp next) {
     }
     if (next == NABO_MUYU)
         nabo_muyu_ui_open();
-    if (next == NABO_RADIO)
-        nabo_radio_menu_open();
+    if (next == NABO_DIVE) {
+        // DIVE draws straight to the panel with hardware scroll; LVGL refresh pauses meanwhile.
+        auto display = static_cast<NaboDisplay*>(Board::GetInstance().GetDisplay());
+        esp_lcd_panel_io_handle_t io;
+        esp_lcd_panel_handle_t panel;
+        display->BeginDirectDraw(&io, &panel);
+        if (!nabo_dive_open(io, panel, esp_random())) {
+            display->EndDirectDraw();
+            snprintf(notice, sizeof(notice), "内存不足，请退出重试");
+            nabo_apps_open(NABO_TOOLS);
+        }
+    }
     if (next == NABO_RHYTHM &&
         !nabo_rhythm_ui_open(app_screen, &nabo_menu_font_16)) {
         snprintf(notice, sizeof(notice), "内存不足，请退出重试");
@@ -776,36 +762,6 @@ static void change_page(NaboApp next) {
         }
     }
     ESP_LOGI("NABO-Apps", "page=%d", static_cast<int>(next));
-}
-// Renders the radio's "> item" text menus as a now-playing card plus rows.
-static void display_text_menu(char* text) {
-    if (strncmp(text, "> ", 2) && !strstr(text, "\n> ")) {
-        menu_view::Body(text, 96);
-        return;
-    }
-    const char* header[2] = {"", ""};
-    const char* items[12];
-    int headers = 0, count = 0, cursor = 0;
-    for (char* line = text; line;) {
-        char* next = strchr(line, '\n');
-        if (next)
-            *next++ = 0;
-        bool item = (line[0] == '>' || line[0] == ' ') && line[1] == ' ';
-        if (item && count < 12) {
-            if (line[0] == '>')
-                cursor = count;
-            items[count++] = line + 2;
-        } else if (line[0] && !count && headers < 2)
-            header[headers++] = line;
-        line = next;
-    }
-    if (header[1][0]) {
-        menu_view::Card(header[0], header[1]);
-        menu_view::Rows(items, count, cursor, false, 162, 4);
-    } else {
-        menu_view::Body(header[0], 94);
-        menu_view::Rows(items, count, cursor, false, 124, 5);
-    }
 }
 void nabo_apps_tick() {
     if (!app_screen)
@@ -930,11 +886,6 @@ void nabo_apps_tick() {
         }
         if (edit >= 0)
             hint = "上/下 调整 · OK 保存";
-    } else if (page == NABO_RADIO) {
-        mv::Header("RADIO", "网络电台", mv::kPink, nullptr);
-        nabo_radio_menu_text(text, sizeof(text));
-        display_text_menu(text);
-        hint = "OK 确定 · 双击上 上一级";
     } else if (page == NABO_KEYS) {
         if (key_group < 0) {
             const char* groups[7] = {"返回",
@@ -1050,8 +1001,6 @@ static void return_one_level() {
     if (current == NABO_HOME)
         return;
     bool settled = ready.load() && current == page;
-    if (settled && current == NABO_RADIO && nabo_radio_menu_key(MUSE_MENU_LEFT))
-        return;
     if (settled && current == NABO_RHYTHM && nabo_rhythm_ui_key(MUSE_MENU_LEFT))
         return;
     if (settled && current == NABO_KEYS && key_group >= 0) {
@@ -1113,9 +1062,8 @@ bool nabo_apps_key(muse_menu_key_t key) {
             nabo_apps_open(NABO_TOOLS);
         return true;
     }
-    if (page == NABO_RADIO) {
-        if (!nabo_radio_menu_key(key))
-            nabo_apps_open(NABO_TOOLS);
+    if (page == NABO_DIVE) {
+        nabo_dive_key(key);
         return true;
     }
     if (page == NABO_RHYTHM) {
@@ -1215,6 +1163,12 @@ bool nabo_apps_key(muse_menu_key_t key) {
 void nabo_apps_down_pressed(uint32_t event_ms) {
     if (page == NABO_RHYTHM && ready.load() && wanted.load() == NABO_RHYTHM)
         nabo_rhythm_ui_press(1, event_ms);
+    if (page == NABO_DIVE && ready.load() && wanted.load() == NABO_DIVE)
+        nabo_dive_button(NABO_DIVE_BUTTON_DOWN, true, event_ms);
+}
+void nabo_apps_down_released(uint32_t event_ms) {
+    if (page == NABO_DIVE)
+        nabo_dive_button(NABO_DIVE_BUTTON_DOWN, false, event_ms);
 }
 void nabo_apps_charge(bool pressed, uint32_t event_ms) {
     last_input = esp_timer_get_time();
@@ -1222,6 +1176,10 @@ void nabo_apps_charge(bool pressed, uint32_t event_ms) {
         event_ms = esp_timer_get_time() / 1000;
     if (pressed && page == NABO_RHYTHM && ready.load() && wanted.load() == NABO_RHYTHM) {
         nabo_rhythm_ui_press(0, event_ms);
+        return;
+    }
+    if (page == NABO_DIVE && ready.load() && wanted.load() == NABO_DIVE) {
+        nabo_dive_button(NABO_DIVE_BUTTON_OK, pressed, event_ms);
         return;
     }
     if (!nabo_apps_is_jump())
@@ -1246,7 +1204,7 @@ void nabo_apps_register_tools() {
     server.AddTool(
         "self.apps.open",
         "打开工牌内置程序。app "
-        "可用：跳一跳(jump)、节奏回声(rhythm)、摇骰子(dice)、功德木鱼(muyu)、网络电台(radio)、"
+        "可用：跳一跳(jump)、节奏回声(rhythm)、深潜(dive)、摇骰子(dice)、功德木鱼(muyu)、"
         "电脑快捷键(computer)"
         "、设置(settings)、工具(tools)。进入程序会暂停语音对话；双击上键返回上一级，长按上键回到 "
         "NABO "
@@ -1261,8 +1219,8 @@ void nabo_apps_register_tools() {
                 app = NABO_DICE;
             else if (name == "muyu" || name == "木鱼" || name == "功德木鱼")
                 app = NABO_MUYU;
-            else if (name == "radio" || name == "网络电台" || name == "电台")
-                app = NABO_RADIO;
+            else if (name == "dive" || name == "深潜" || name == "潜水")
+                app = NABO_DIVE;
             else if (name == "computer" || name == "电脑控制" || name == "电脑快捷键")
                 app = NABO_KEYS;
             else if (name == "rhythm" || name == "节奏回声" || name == "节奏游戏")
@@ -1273,7 +1231,7 @@ void nabo_apps_register_tools() {
                 app = NABO_TOOLS;
             else
                 return std::unexpected(
-                    "Unknown app. Use jump, rhythm, dice, muyu, radio, computer, settings or tools.");
+                    "Unknown app. Use jump, rhythm, dive, dice, muyu, computer, settings or tools.");
             nabo_apps_open(app, 900);
             return std::string("已安排打开 ") + name + "。程序中使用实体按键；长按上键返回小智。";
         });
@@ -1286,7 +1244,7 @@ bool nabo_apps_voice_command(const char* transcript) {
         return false;
     NaboApp target = !strcmp(name, "dice")       ? NABO_DICE
                      : !strcmp(name, "muyu")     ? NABO_MUYU
-                     : !strcmp(name, "radio")    ? NABO_RADIO
+                     : !strcmp(name, "dive")     ? NABO_DIVE
                      : !strcmp(name, "jump")     ? NABO_JUMP
                      : !strcmp(name, "computer") ? NABO_KEYS
                      : !strcmp(name, "rhythm")   ? NABO_RHYTHM

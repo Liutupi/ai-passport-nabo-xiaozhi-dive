@@ -1,6 +1,6 @@
 #pragma once
 // Poster-style menu panel (cream paper, ink, solid accent blocks) shared by the
-// tools, settings, status, radio and keyboard pages. The panel exists only
+// tools, settings, status and keyboard pages. The panel exists only
 // while a menu page is open; LVGL allocates from the C3's system heap.
 //
 // Each frame: Begin(), then any number of component calls, then End(). End()

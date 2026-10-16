@@ -137,12 +137,20 @@ private:
         });
 
         auto down = adc_button_[kAdcButtonDown];
-        // The rhythm game scores DOWN on press-down; menus keep using its click.
+        // Rhythm scores DOWN on press-down and DIVE dashes while it is held;
+        // menus keep using its click.
         down->OnPressDown([this]() {
             uint32_t event_ms = esp_timer_get_time() / 1000;
             Application::GetInstance().Schedule([this, event_ms]() {
                 DisplayLockGuard lock(display_);
                 nabo_apps_down_pressed(event_ms);
+            });
+        });
+        down->OnPressUp([this]() {
+            uint32_t event_ms = esp_timer_get_time() / 1000;
+            Application::GetInstance().Schedule([this, event_ms]() {
+                DisplayLockGuard lock(display_);
+                nabo_apps_down_released(event_ms);
             });
         });
         down->OnClick([this]() {

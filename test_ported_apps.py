@@ -19,7 +19,6 @@ BOARD = ROOT / 'xiaozhi-esp32/main/boards/folotoy/ai-passport-nabo'
 workspace = tempfile.TemporaryDirectory(prefix='nabo-production-tests-')
 TESTROOT = Path(workspace.name)
 shutil.copytree(BOARD, TESTROOT/'firmware')
-shutil.copytree(BOARD/'helix', TESTROOT/'third_party/helix-mp3')
 os.environ['CC'] = CC
 sys.path.insert(0, str(ROOT/'tests/legacy'))
 suite = unittest.TestSuite()
@@ -28,9 +27,6 @@ choices = {
     'test_keys': ['KeysModel'],
     'test_muyu': ['MuyuCoreC'],
     'test_muyu_ui': ['MuyuUIActualC'],
-    'test_radio_stream': ['RadioStreamTests'],
-    'test_radio_decoder': ['RadioDecoderTests'],
-    'test_radio_menu': ['RadioMenuC'],
 }
 for name, classes in choices.items():
     module = importlib.import_module(name)

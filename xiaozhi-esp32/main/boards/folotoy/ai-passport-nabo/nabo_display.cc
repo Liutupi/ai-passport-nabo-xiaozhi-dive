@@ -6,6 +6,7 @@
 #include "application.h"
 #include "display/lvgl_display/lvgl_theme.h"
 #include "driver/usb_serial_jtag.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "nabo_apps.h"
 #include "src/display/lv_display_private.h"
@@ -61,6 +62,27 @@ void NaboDisplay::CaptureLCD() {
     DisplayLockGuard lock(this);
     capture_lcd = true;
     lv_obj_invalidate(lv_screen_active());
+}
+
+void NaboDisplay::BeginDirectDraw(esp_lcd_panel_io_handle_t* io, esp_lcd_panel_handle_t* panel) {
+    if (display_ && !direct_draw_) {
+        lv_timer_pause(lv_display_get_refr_timer(display_));
+        while (display_->flushing)
+            vTaskDelay(1);
+    }
+    direct_draw_ = true;
+    *io = panel_io_;
+    *panel = panel_;
+}
+
+void NaboDisplay::EndDirectDraw() {
+    if (!direct_draw_)
+        return;
+    direct_draw_ = false;
+    if (display_) {
+        lv_timer_resume(lv_display_get_refr_timer(display_));
+        lv_obj_invalidate(lv_screen_active());
+    }
 }
 
 lv_result_t NaboDisplay::Info(lv_image_decoder_t* decoder, lv_image_decoder_dsc_t* dsc,
